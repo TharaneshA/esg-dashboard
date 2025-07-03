@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -8,64 +8,21 @@ import { Search, Star, TrendingUp, TrendingDown, Building, Users, Plus } from "l
 import { Badge } from "@/components/ui/badge"
 import { useTheme } from "./theme-provider"
 
-const companyData = [
-  {
-    "Company name": "1-800-FLOWERS.COM, Inc.",
-    "Industry group": "Retailing",
-    Country: "United States of America",
-    "Full time employees": "4,000",
-    "Risk rating score": "28.9",
-    "Risk rating assessment": "Medium Risk",
-    "Industry group position": "432",
-    "Industry group positions total": "450",
-    "Universe position": "9143",
-    "Universe positions total": "14689",
-    "Company description":
-      "1-800-Flowers.com Inc is a provider of gifts designed to help customers express, connect, and celebrate. The company's e-commerce business platform features all brands, including 1-800-Flowers.com, 1-800-Baskets.com, Cheryl's Cookies, Harry and David, PersonalizationMall.com, Shari's Berries, FruitBouquets.com, Moose Munch, The Popcorn Factory, Wolferman's Bakery, Stock Yards, and Simply Chocolate. The company's business segments are; Consumer Floral and Gifts, BloomNet, and Gourmet Foods & Gift Baskets. The maximum revenue for the company is generated from its Gourmet Foods & Gift Baskets segment.",
-  },
-  {
-    "Company name": "1&1 AG",
-    "Industry group": "Telecommunication Services",
-    Country: "Germany",
-    "Full time employees": "3,301",
-    "Risk rating score": "27.0",
-    "Risk rating assessment": "Medium Risk",
-    "Industry group position": "127",
-    "Industry group positions total": "201",
-    "Universe position": "8130",
-    "Universe positions total": "14689",
-    "Company description":
-      "1&1 AG is a network-independent telecommunications provider in Germany. The company has two business segments which include Access and 1&1 Mobile Network. 1&1's Access segment offers internet access products based on landline and mobile networks. The Group's chargeable mobile Internet and broadband products, including the related applications (such as home networks, online storage, telephony, smart home or IPTV) are grouped together in the Access segment. Majority revenue is from Access Segment.",
-  },
-  {
-    "Company name": "11 Bit Studios SA",
-    "Industry group": "Software & Services",
-    Country: "Poland",
-    "Full time employees": "294",
-    "Risk rating score": "16.3",
-    "Risk rating assessment": "Low Risk",
-    "Industry group position": "125",
-    "Industry group positions total": "944",
-    "Universe position": "2050",
-    "Universe positions total": "14689",
-    "Company description":
-      "11 bit studios SA is a manufacturer of multi-platform video games in Poland. It develops games for a wide range of devices including personal computers, and tablet computers.",
-  },
-  {
-    "Company name": "10X Genomics, Inc.",
-    "Industry group": "Pharmaceuticals",
-    Country: "United States of America",
-    "Full time employees": "1,306",
-    "Risk rating score": "22.5",
-    "Risk rating assessment": "Medium Risk",
-    "Industry group position": "115",
-    "Industry group positions total": "843",
-    "Universe position": "5381",
-    "Universe positions total": "14689",
-    "Company description":
-      "10x Genomics Inc is a life science technology company based in the United States. Its solutions include instruments, consumables, and software for analyzing biological systems. The company's integrated solutions include instruments, consumables, and software for analyzing biological systems at a resolution and scale that matches the complexity of biology. Its product offerings include a Chromium platform comprising microfluidic chips and related consumables, Chromium X series, Visium and Xenium platforms, and others, which are predominantly used for the study of biological components. Geographically, the company derives maximum revenue from the United States and the rest from Americas (excluding the United States), Europe, Middle East and Africa, China, and Asia-Pacific (excluding China).",
-  },
-]
+interface Company {
+  "Company name": string;
+  "Industry group": string;
+  Country: string;
+  "Full time employees": string;
+  "Risk rating score": string;
+  "Risk rating assessment": string;
+  "Industry group position": string;
+  "Industry group positions total": string;
+  "Universe position": string;
+  "Universe positions total": string;
+  "Company description": string;
+}
+
+
 
 interface CompanyScreenerProps {
   onCompanySelect: (company: any) => void
@@ -75,27 +32,42 @@ interface CompanyScreenerProps {
 export function CompanyScreener({ onCompanySelect, onAddToPortfolio }: CompanyScreenerProps) {
   const { theme } = useTheme()
   const [searchQuery, setSearchQuery] = useState("")
-  const [filteredCompanies, setFilteredCompanies] = useState(companyData)
+  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([])
   const [starredCompanies, setStarredCompanies] = useState<string[]>([])
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      setFilteredCompanies(companyData)
+      setFilteredCompanies([])
       return
     }
 
-    const filtered = companyData.filter(
-      (company) =>
-        company["Company name"].toLowerCase().includes(searchQuery.toLowerCase()) ||
-        company["Industry group"].toLowerCase().includes(searchQuery.toLowerCase()) ||
-        company["Country"].toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-    setFilteredCompanies(filtered)
+    try {
+      const response = await fetch(`/api/search?query=${encodeURIComponent(searchQuery)}`)
+      const data = await response.json()
+      setFilteredCompanies(data)
+    } catch (error) {
+      console.error("Failed to fetch search results:", error)
+      setFilteredCompanies([])
+    }
   }
 
+  useEffect(() => {
+    // Initially load all companies or a default set
+    const loadInitialData = async () => {
+      try {
+        const response = await fetch(`/api/search?query=`)
+        const data = await response.json()
+        setFilteredCompanies(data)
+      } catch (error) {
+        console.error("Failed to load initial data:", error)
+      }
+    }
+    loadInitialData()
+  }, [])
+
   const toggleStar = (companyName: string) => {
-    setStarredCompanies((prev) =>
-      prev.includes(companyName) ? prev.filter((name) => name !== companyName) : [...prev, companyName],
+    setStarredCompanies((prev: string[]) =>
+      prev.includes(companyName) ? prev.filter((name: string) => name !== companyName) : [...prev, companyName],
     )
   }
 
@@ -131,14 +103,14 @@ export function CompanyScreener({ onCompanySelect, onAddToPortfolio }: CompanySc
             <div className="flex-1">
               <Input
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e: { target: { value: any } }) => setSearchQuery(e.target.value)}
                 placeholder="Search companies, industries, or countries..."
                 className={
                   theme === "dark"
                     ? "bg-gray-800 border-gray-700 text-white placeholder:text-gray-400"
                     : "bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
                 }
-                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                onKeyPress={(e: { key: string }) => e.key === "Enter" && handleSearch()}
               />
             </div>
             <Button onClick={handleSearch} className="bg-green-600 hover:bg-green-700">

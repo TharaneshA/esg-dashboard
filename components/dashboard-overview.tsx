@@ -23,22 +23,75 @@ const investmentData = [
   { month: "May", value: 4800 },
   { month: "Jun", value: 4600 },
   { month: "Jul", value: 4900 },
-]
+];
 
 const esgData = [
   { name: "Environmental", value: 35, color: "#10b981" },
   { name: "Social", value: 30, color: "#3b82f6" },
   { name: "Governance", value: 25, color: "#8b5cf6" },
   { name: "Other", value: 10, color: "#f59e0b" },
-]
+];
 
-const recentProjects = [
-  { name: "Solar Farm Project", type: "Renewable Energy", esgScore: 92, investment: "$12.5M", status: "Active" },
-  { name: "Green Building Initiative", type: "Real Estate", esgScore: 88, investment: "$8.2M", status: "Active" },
-  { name: "Clean Water Program", type: "Infrastructure", esgScore: 95, investment: "$15.8M", status: "Pending" },
-]
+import { Company } from "@/types";
 
-export function DashboardOverview() {
+interface DashboardOverviewProps {
+  portfolioCompanies: Company[];
+}
+
+// Helper functions for calculations
+const calculateTotalProjects = (companies: Company[]) => {
+  return companies.length;
+};
+
+const calculateAverageEsgScore = (companies: Company[]) => {
+  if (companies.length === 0) return 0;
+  const totalEsgScore = companies.reduce((sum, company) => sum + (company.esgScore || 0), 0);
+  const average = totalEsgScore / companies.length;
+  return isNaN(average) ? '0.0' : average.toFixed(1);
+};
+
+const calculateTotalInvestment = (companies: Company[]) => {
+  const total = companies.reduce((sum, company) => {
+    const price = company.currentPrice || 0;
+    const shares = company.shares || 0;
+    return sum + (price * shares);
+  }, 0);
+  const totalInMillions = total / 1000000;
+  return isNaN(totalInMillions) ? '0.0' : totalInMillions.toFixed(1);
+};
+
+const calculateCarbonOffset = (companies: Company[]) => {
+  // Placeholder: A more sophisticated calculation would be needed based on actual company data.
+  // For now, let's base it on total investment as a proxy.
+  const totalInvestment = companies.reduce((sum, company) => {
+    const price = company.currentPrice || 0;
+    const shares = company.shares || 0;
+    return sum + (price * shares);
+  }, 0);
+  const carbonOffsetValue = totalInvestment * 0.000000001; // Example: 1 ton per $1,000,000 invested
+  return isNaN(carbonOffsetValue) ? '0.0' : carbonOffsetValue.toFixed(1);
+};
+
+const generateRecentProjects = (companies: Company[]) => {
+  // Sort by a relevant timestamp if available, otherwise assume array order
+  // Take the last 4 companies and reverse their order
+  const recent = [...companies].slice(-4).reverse();
+  return recent.map(company => ({
+    name: company.name,
+    type: company.industryGroup || 'N/A',
+    esgScore: company.esgScore || 0,
+    investment: `$${isNaN(((company.currentPrice || 0) * (company.shares || 0) / 1000000)) ? '0.0' : ((company.currentPrice || 0) * (company.shares || 0) / 1000000).toFixed(1)}M`,
+    status: 'Active', // Assuming all portfolio companies are active projects
+  }));
+};
+
+export function DashboardOverview({ portfolioCompanies }: DashboardOverviewProps) {
+  const totalProjects = calculateTotalProjects(portfolioCompanies)
+  const averageEsgScore = calculateAverageEsgScore(portfolioCompanies)
+  const totalInvestment = calculateTotalInvestment(portfolioCompanies)
+  const carbonOffset = calculateCarbonOffset(portfolioCompanies)
+  const recentProjects = generateRecentProjects(portfolioCompanies)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -55,7 +108,7 @@ export function DashboardOverview() {
             <Building className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">127</div>
+            <div className="text-2xl font-bold text-white">{totalProjects}</div>
             <p className="text-xs text-green-400 flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               +20.1% from last month
@@ -69,7 +122,7 @@ export function DashboardOverview() {
             <Leaf className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">82.4</div>
+            <div className="text-2xl font-bold text-white">{averageEsgScore}</div>
             <p className="text-xs text-green-400 flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               +4.3% from last month
@@ -83,7 +136,7 @@ export function DashboardOverview() {
             <DollarSign className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">$324.2M</div>
+            <div className="text-2xl font-bold text-white">${totalInvestment}M</div>
             <p className="text-xs text-green-400 flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               +12.5% from last month
@@ -97,7 +150,7 @@ export function DashboardOverview() {
             <Users className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">1.2M tons</div>
+            <div className="text-2xl font-bold text-white">{carbonOffset}M tons</div>
             <p className="text-xs text-green-400 flex items-center gap-1">
               <TrendingUp className="h-3 w-3" />
               +8.2% from last month
@@ -218,3 +271,4 @@ export function DashboardOverview() {
     </div>
   )
 }
+

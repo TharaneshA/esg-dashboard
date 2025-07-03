@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ThemeProvider, useTheme } from "./components/theme-provider"
 import { ImprovedLanding } from "./components/improved-landing"
 import { ImprovedSidebar } from "./components/improved-sidebar"
@@ -25,6 +25,25 @@ function PlatformContent() {
   const [userEmail, setUserEmail] = useState("")
   const [showAuthDialog, setShowAuthDialog] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
+
+  // Load portfolio data when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const fetchPortfolio = async () => {
+        try {
+          const response = await fetch('/api/portfolio');
+          if (response.ok) {
+            const data = await response.json();
+            setPortfolioCompanies(data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch portfolio data:', error);
+        }
+      };
+      
+      fetchPortfolio();
+    }
+  }, [isAuthenticated]);
 
   const handleSearch = (query: string) => {
     if (!isAuthenticated) {
@@ -81,14 +100,40 @@ function PlatformContent() {
     setActiveSection("screener")
   }
 
-  const handleAddToPortfolio = (company: any) => {
+  const handleAddToPortfolio = async (company: any) => {
     if (!portfolioCompanies.some((c) => c["Company name"] === company["Company name"])) {
-      setPortfolioCompanies((prev) => [...prev, company])
+      try {
+        const response = await fetch('/api/portfolio', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(company),
+        });
+        
+        if (response.ok) {
+          const updatedPortfolio = await response.json();
+          setPortfolioCompanies(updatedPortfolio);
+        }
+      } catch (error) {
+        console.error('Failed to add company to portfolio:', error);
+      }
     }
   }
 
-  const handleRemoveFromPortfolio = (companyName: string) => {
-    setPortfolioCompanies((prev) => prev.filter((company) => company["Company name"] !== companyName))
+  const handleRemoveFromPortfolio = async (companyName: string) => {
+    try {
+      const response = await fetch(`/api/portfolio?companyName=${encodeURIComponent(companyName)}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        const updatedPortfolio = await response.json();
+        setPortfolioCompanies(updatedPortfolio);
+      }
+    } catch (error) {
+      console.error('Failed to remove company from portfolio:', error);
+    }
   }
 
   if (currentView === "landing") {
@@ -123,17 +168,25 @@ function PlatformContent() {
 
       <main className="flex-1 overflow-auto">
         <div className="p-8">
-          {activeSection === "overview" && <DashboardOverview />}
+          {activeSection === "overview" && <DashboardOverview portfolioCompanies={portfolioCompanies} />}
           {activeSection === "screener" && !selectedCompany && (
             <CompanyScreener onCompanySelect={handleCompanySelect} onAddToPortfolio={handleAddToPortfolio} />
           )}
           {activeSection === "company-details" && selectedCompany && (
             <CompanyDetails company={selectedCompany} onBack={handleBackToScreener} />
           )}
-          {activeSection === "analytics" && <Analytics />}
+          {activeSection === "analytics" && <Analytics portfolioCompanies={portfolioCompanies} />} 
           {activeSection === "esg-metrics" && <ESGMetrics />}
           {activeSection === "portfolio" && (
-            <Portfolio portfolioCompanies={portfolioCompanies} onRemoveFromPortfolio={handleRemoveFromPortfolio} />
+            <Portfolio
+              portfolioCompanies={portfolioCompanies}
+              onRemoveFromPortfolio={handleRemoveFromPortfolio}
+            onViewDetails={handleCompanySelect}
+            onAddInvestmentClick={() => {
+              setCurrentView("dashboard");
+              setActiveSection("screener");
+            }}
+          />
           )}
           {activeSection === "trends" && <Trends />}
         </div>

@@ -14,42 +14,59 @@ import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis
 interface PortfolioProps {
   portfolioCompanies: any[]
   onRemoveFromPortfolio: (companyName: string) => void
+  onViewDetails: (company: any) => void
+  onAddInvestmentClick: () => void
 }
 
-const portfolioPerformance = [
-  { month: "Jan", value: 100000 },
-  { month: "Feb", value: 105000 },
-  { month: "Mar", value: 98000 },
-  { month: "Apr", value: 112000 },
-  { month: "May", value: 118000 },
-  { month: "Jun", value: 125000 },
-]
+// Mock data removed, these will be dynamically calculated or fetched
+const portfolioPerformance: { month: string; value: number }[] = []
 
-const sectorAllocation = [
-  { name: "Technology", value: 35, color: "#3b82f6" },
-  { name: "Healthcare", value: 25, color: "#10b981" },
-  { name: "Finance", value: 20, color: "#8b5cf6" },
-  { name: "Energy", value: 12, color: "#f59e0b" },
-  { name: "Other", value: 8, color: "#6b7280" },
-]
-
-export function Portfolio({ portfolioCompanies, onRemoveFromPortfolio }: PortfolioProps) {
+export function Portfolio({
+  portfolioCompanies,
+  onRemoveFromPortfolio,
+  onViewDetails,
+  onAddInvestmentClick,
+}: PortfolioProps) {
   const [selectedHolding, setSelectedHolding] = useState<any>(null)
 
-  // Calculate portfolio metrics
-  const totalValue = 125000
-  const totalReturn = 25000
-  const totalReturnPercent = (totalReturn / (totalValue - totalReturn)) * 100
-  const dayChange = 1250
-  const dayChangePercent = 1.02
-
-  const mockHoldings = portfolioCompanies.map((company, index) => ({
+  // Calculate portfolio metrics based on actual portfolio data
+  // For now, we'll assume each company in the portfolio has a 'value' property
+  // In a real application, you would fetch or calculate these values based on shares and current price.
+  const holdings = portfolioCompanies.map((company: any) => ({
     ...company,
-    shares: Math.floor(Math.random() * 100) + 10,
-    avgPrice: Math.floor(Math.random() * 100) + 50,
-    currentPrice: Math.floor(Math.random() * 120) + 60,
-    allocation: Math.floor(Math.random() * 15) + 5,
+    // Placeholder values for now, will be replaced with actual data or calculated
+    shares: 1, // Assuming 1 share for simplicity
+    avgPrice: company["Risk rating score"] || 0, // Using risk score as a placeholder for price
+    currentPrice: company["Risk rating score"] || 0, // Using risk score as a placeholder for price
+    allocation: 0,
   }))
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A28DFF', '#FF6B6B', '#6BFF6B', '#6B6BFF'];
+
+  // Calculate sector allocation dynamically
+  const sectorAllocationRaw = holdings.reduce((acc: { [key: string]: number }, holding: any) => {
+    const sectorName = holding["Industry group"];
+    const holdingValue = holding.shares * holding.currentPrice;
+    acc[sectorName] = (acc[sectorName] || 0) + holdingValue;
+    return acc;
+  }, {});
+
+  const totalPortfolioValue = Object.values(sectorAllocationRaw).reduce((sum, value) => sum + value, 0);
+
+  const sectorAllocation = Object.entries(sectorAllocationRaw).map(([name, value], index) => ({
+    name,
+    value: (value / totalPortfolioValue) * 100, // Convert to percentage
+    color: COLORS[index % COLORS.length]
+  }));
+
+  // Calculate total portfolio value and returns
+  const totalValue = holdings.reduce((sum, holding) => sum + (holding.shares * holding.currentPrice), 0)
+  const totalCost = holdings.reduce((sum, holding) => sum + (holding.shares * holding.avgPrice), 0)
+  const totalReturn = totalValue - totalCost
+  const totalReturnPercent = totalCost > 0 ? (totalReturn / totalCost) * 100 : 0
+  // For now, simulating a small daily change for display purposes
+  const dayChange = totalValue * 0.001 // Simulating a 0.1% daily change
+  const dayChangePercent = 0.1
 
   const getReturnColor = (value: number) => {
     return value >= 0 ? "text-green-400" : "text-red-400"
@@ -67,7 +84,7 @@ export function Portfolio({ portfolioCompanies, onRemoveFromPortfolio }: Portfol
           <h1 className="text-3xl font-bold text-white mb-2">Portfolio</h1>
           <p className="text-gray-400">Your ESG investment portfolio overview</p>
         </div>
-        <Button className="bg-green-600 hover:bg-green-700">
+        <Button className="bg-green-600 hover:bg-green-700" onClick={onAddInvestmentClick}>
           <Plus className="h-4 w-4 mr-2" />
           Add Investment
         </Button>
@@ -117,7 +134,7 @@ export function Portfolio({ portfolioCompanies, onRemoveFromPortfolio }: Portfol
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Holdings</p>
-                <p className="text-2xl font-bold text-white">{mockHoldings.length}</p>
+                <p className="text-2xl font-bold text-white">{holdings.length}</p>
               </div>
               <Percent className="h-8 w-8 text-purple-400" />
             </div>
@@ -130,7 +147,9 @@ export function Portfolio({ portfolioCompanies, onRemoveFromPortfolio }: Portfol
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Avg ESG Score</p>
-                <p className="text-2xl font-bold text-green-400">84.2</p>
+                <p className="text-2xl font-bold text-green-400">
+                  {(holdings.reduce((sum, holding) => sum + (100 - Number.parseFloat(holding["Risk rating score"] || 0)), 0) / holdings.length || 0).toFixed(1)}
+                </p>
               </div>
               <Star className="h-8 w-8 text-green-400" />
             </div>
@@ -191,7 +210,7 @@ export function Portfolio({ portfolioCompanies, onRemoveFromPortfolio }: Portfol
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {sectorAllocation.map((entry, index) => (
+                  {sectorAllocation.map((entry: { color: string }, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -217,7 +236,7 @@ export function Portfolio({ portfolioCompanies, onRemoveFromPortfolio }: Portfol
           <p className="text-gray-400 text-sm">Your active investment positions</p>
         </CardHeader>
         <CardContent>
-          {mockHoldings.length === 0 ? (
+          {holdings.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">
                 <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -241,7 +260,7 @@ export function Portfolio({ portfolioCompanies, onRemoveFromPortfolio }: Portfol
                   </tr>
                 </thead>
                 <tbody>
-                  {mockHoldings.map((holding, index) => {
+                  {holdings.map((holding, index) => {
                     const totalCost = holding.shares * holding.avgPrice
                     const currentValue = holding.shares * holding.currentPrice
                     const pnl = currentValue - totalCost
@@ -292,7 +311,10 @@ export function Portfolio({ portfolioCompanies, onRemoveFromPortfolio }: Portfol
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                              <DropdownMenuItem className="text-gray-300 hover:text-white">
+                              <DropdownMenuItem
+                                onClick={() => onViewDetails(holding)}
+                                className="text-gray-300 hover:text-white"
+                              >
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>

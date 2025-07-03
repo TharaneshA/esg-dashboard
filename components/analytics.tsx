@@ -17,41 +17,127 @@ import {
   ScatterChart,
   Scatter,
 } from "recharts"
+import { Company } from "@/types"
 
-const performanceData = [
-  { month: "Jan", portfolio: 100, benchmark: 100, esgFactor: 102 },
-  { month: "Feb", portfolio: 105, benchmark: 103, esgFactor: 108 },
-  { month: "Mar", portfolio: 98, benchmark: 101, esgFactor: 104 },
-  { month: "Apr", portfolio: 112, benchmark: 106, esgFactor: 115 },
-  { month: "May", portfolio: 118, benchmark: 109, esgFactor: 122 },
-  { month: "Jun", portfolio: 125, benchmark: 112, esgFactor: 128 },
-]
+interface AnalyticsProps {
+  portfolioCompanies: Company[]
+}
 
-const riskReturnData = [
-  { risk: 12, return: 8.5, name: "Conservative ESG" },
-  { risk: 18, return: 12.2, name: "Balanced ESG" },
-  { risk: 25, return: 15.8, name: "Growth ESG" },
-  { risk: 32, return: 18.5, name: "Aggressive ESG" },
-  { risk: 22, return: 14.1, name: "Your Portfolio" },
-]
+// Helper function to calculate total portfolio value
+const calculateTotalPortfolioValue = (companies: Company[]) => {
+  return companies.reduce((sum, company) => sum + (company.currentPrice || 0) * (company.shares || 0), 0)
+}
 
-const sectorAllocation = [
-  { sector: "Technology", allocation: 35, performance: 18.5 },
-  { sector: "Healthcare", allocation: 25, performance: 12.3 },
-  { sector: "Finance", allocation: 20, performance: 8.7 },
-  { sector: "Energy", allocation: 10, performance: 22.1 },
-  { sector: "Consumer", allocation: 10, performance: 6.4 },
-]
+// Helper function to calculate total return (simplified for now)
+const calculateTotalReturn = (companies: Company[]) => {
+  const initialValue = companies.reduce((sum, company) => sum + (company.avgPrice || 0) * (company.shares || 0), 0)
+  const currentValue = calculateTotalPortfolioValue(companies)
+  if (initialValue === 0) return 0
+  return ((currentValue - initialValue) / initialValue) * 100
+}
 
-const correlationData = [
-  { metric: "ESG Score", correlation: 0.78, significance: "High" },
-  { metric: "Carbon Intensity", correlation: -0.65, significance: "High" },
-  { metric: "Board Diversity", correlation: 0.42, significance: "Medium" },
-  { metric: "Employee Satisfaction", correlation: 0.58, significance: "High" },
-  { metric: "Governance Rating", correlation: 0.71, significance: "High" },
-]
+// Helper function to calculate average ESG score
+const calculateAverageEsgScore = (companies: Company[]) => {
+  if (companies.length === 0) return 0
+  const totalEsgScore = companies.reduce((sum, company) => sum + company.esgScore, 0)
+  return totalEsgScore / companies.length
+}
 
-export function Analytics() {
+// Helper function to generate performance data (mock for now, needs historical data)
+const generatePerformanceData = () => {
+  // In a real application, this would fetch or calculate historical performance
+  // For now, returning a static mock to avoid breaking the chart
+  return [
+    { month: "Jan", portfolio: 100, benchmark: 100, esgFactor: 102 },
+    { month: "Feb", portfolio: 105, benchmark: 103, esgFactor: 108 },
+    { month: "Mar", portfolio: 98, benchmark: 101, esgFactor: 104 },
+    { month: "Apr", portfolio: 112, benchmark: 106, esgFactor: 115 },
+    { month: "May", portfolio: 118, benchmark: 109, esgFactor: 122 },
+    { month: "Jun", portfolio: 125, benchmark: 112, esgFactor: 128 },
+  ]
+}
+
+// Helper function to generate risk-return data
+const generateRiskReturnData = (companies: Company[]) => {
+  if (companies.length === 0) return []
+
+  const portfolioRisk = companies.reduce((sum, company) => sum + company.riskRating, 0) / companies.length
+  const portfolioReturn = calculateTotalReturn(companies)
+
+  return [
+    { risk: 12, return: 8.5, name: "Conservative ESG" },
+    { risk: 18, return: 12.2, name: "Balanced ESG" },
+    { risk: 25, return: 15.8, name: "Growth ESG" },
+    { risk: 32, return: 18.5, name: "Aggressive ESG" },
+    { risk: parseFloat(portfolioRisk.toFixed(2)), return: parseFloat(portfolioReturn.toFixed(2)), name: "Your Portfolio" },
+  ]
+}
+
+// Helper function to generate sector allocation data
+const generateSectorAllocation = (companies: Company[]) => {
+  const sectorMap = new Map<string, { allocation: number; performance: number }>()
+
+  companies.forEach(company => {
+    const sector = company.industryGroup || "Other"
+    const value = (company.currentPrice || 0) * (company.shares || 0)
+    const esgScore = company.esgScore || 0 // Using ESG score as a proxy for performance for now
+
+    if (sectorMap.has(sector)) {
+      const existing = sectorMap.get(sector)!
+      sectorMap.set(sector, {
+        allocation: existing.allocation + value,
+        performance: existing.performance + esgScore,
+      })
+    } else {
+      sectorMap.set(sector, { allocation: value, performance: esgScore })
+    }
+  })
+
+  const totalValue = Array.from(sectorMap.values()).reduce((sum, s) => sum + s.allocation, 0)
+
+  return Array.from(sectorMap.entries()).map(([sector, data]) => ({
+    sector,
+    allocation: totalValue === 0 ? 0 : (data.allocation / totalValue) * 100,
+    performance: data.performance / companies.filter(c => c.industryGroup === sector).length || 0,
+  }))
+}
+
+// Helper function to generate ESG factor correlation data
+const generateCorrelationData = (companies: Company[]) => {
+  // This is a placeholder. Real correlation requires statistical analysis
+  // of historical ESG metrics vs. portfolio performance.
+  // For demonstration, we'll use a simplified approach or mock data.
+
+  if (companies.length === 0) return []
+
+  // Example: Calculate a very basic 'correlation' based on average ESG score and total return
+  const avgEsg = calculateAverageEsgScore(companies)
+  const totalRet = calculateTotalReturn(companies)
+
+  // This is a highly simplified and not statistically accurate correlation.
+  // A real implementation would involve more complex calculations.
+  const esgPerformanceCorrelation = avgEsg > 70 && totalRet > 10 ? 0.85 : (avgEsg < 50 && totalRet < 0 ? -0.7 : 0.4)
+
+  return [
+    { metric: "ESG Score", correlation: parseFloat(esgPerformanceCorrelation.toFixed(2)), significance: "High" },
+    { metric: "Carbon Intensity", correlation: -0.65, significance: "High" }, // Mock
+    { metric: "Board Diversity", correlation: 0.42, significance: "Medium" }, // Mock
+    { metric: "Employee Satisfaction", correlation: 0.58, significance: "High" }, // Mock
+    { metric: "Governance Rating", correlation: 0.71, significance: "High" }, // Mock
+  ]
+}
+
+export function Analytics({ portfolioCompanies }: AnalyticsProps) {
+  const totalPortfolioValue = calculateTotalPortfolioValue(portfolioCompanies);
+  const totalReturn = calculateTotalReturn(portfolioCompanies);
+  const averageEsgScore = calculateAverageEsgScore(portfolioCompanies);
+  const esgAlpha = totalReturn - 0.08; // Example: Assuming a benchmark return of 8%
+
+  const performanceData = generatePerformanceData();
+  const riskReturnData = generateRiskReturnData(portfolioCompanies);
+  const sectorAllocation = generateSectorAllocation(portfolioCompanies);
+  const correlationData = generateCorrelationData(portfolioCompanies);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -215,7 +301,7 @@ export function Analytics() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {correlationData.map((item, index) => (
+            {correlationData.map((item: { metric: string; correlation: number; significance: string }, index: number) => (
               <div key={index} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
